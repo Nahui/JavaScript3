@@ -1,20 +1,19 @@
 'use strict';
 
 {
-  function fetchJSON(url) {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('GET', url);
-      xhr.responseType = 'json';
-      xhr.onload = () => {
-        if (xhr.status < 400) {
-          resolve(xhr.response);
-        } else {
-          reject(new Error(`Network error: ${xhr.status} - ${xhr.statusText}`));
-        }
-      };
-      xhr.send();
-    });
+  function fetchJSON(url, cb) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url);
+    xhr.responseType = 'json';
+    xhr.onload = () => {
+      if (xhr.status < 400) {
+        cb(null, xhr.response);
+      } else {
+        cb(new Error(`Network error: ${xhr.status} - ${xhr.statusText}`));
+      }
+    };
+    xhr.onerror = () => cb(new Error('Network request failed')); // “communication errors”: connection is lost or the remote server does not respond at all.
+    xhr.send();
   }
 
   function createAndAppend(name, parent, options = {}) {
@@ -64,7 +63,7 @@
 
   // Show contributors
   function contributorsList(element) {
-    fetchJSON(element.contributors_url).then(data => {
+    fetchJSON(element.contributors_url, (err, data) => {
       const container = document.getElementById('container');
       createAndAppend('div', container, {
         id: 'rightArea',
@@ -109,12 +108,11 @@
   }
 
   function main(url) {
-    const root = document.getElementById('root');
-    fetchJSON(url)
-      .catch(reject => {
-        createAndAppend('div', root, { text: reject.message, class: 'alert-error' });
-      })
-      .then(data => {
+    fetchJSON(url, (err, data) => {
+      const root = document.getElementById('root');
+      if (err) {
+        createAndAppend('div', root, { text: err.message, class: 'alert-error' });
+      } else {
         createAndAppend('header', root, { id: 'topArea', class: 'header' });
         const topArea = document.getElementById('topArea');
         createAndAppend('h7', topArea, { id: 'title', text: 'HYF Repositories' });
@@ -135,7 +133,8 @@
           displayInformation(data[selectedItem]);
           contributorsList(data[selectedItem]);
         };
-      });
+      }
+    });
   }
 
   const HYF_REPOS_URL = 'https://api.github.com/orgs/HackYourFuture/repos?per_page=100';
